@@ -59,17 +59,32 @@ class SmartInventoryAssistant:
             print(f"Error loading state: {str(e)}")
             return False
         
+    def should_retrain_model(self, item: str) -> bool:
+        """Check if we have enough data to retrain the model."""
+        if item not in self.sales_history:
+            return False
+        # Need at least 2 data points to train
+        return len(self.sales_history[item]) >= 2
+
     def update_stock(self, item: str, quantity: int, operation: str = "add") -> None:
         """Update inventory levels for an item."""
         if operation == "add":
             self.inventory[item] += quantity
         elif operation == "remove":
             self.inventory[item] = max(0, self.inventory[item] - quantity)
+        
+        # Retrain model if we have enough data
+        if self.should_retrain_model(item):
+            self.train_demand_model()
             
     def record_sale(self, item: str, quantity: int) -> None:
         """Record a sale and update inventory."""
         self.update_stock(item, quantity, "remove")
         self.sales_history[item].append((datetime.datetime.now(), quantity))
+        
+        # Retrain model if we have enough data
+        if self.should_retrain_model(item):
+            self.train_demand_model()
         
     def set_min_stock_level(self, item: str, level: int) -> None:
         """Set minimum stock level for an item."""
